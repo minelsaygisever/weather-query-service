@@ -36,3 +36,5 @@ build/
 *.sqlite
 *.db
 *.sqlite-journal
+
+.env
