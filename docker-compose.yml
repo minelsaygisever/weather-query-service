@@ -12,6 +12,8 @@ services:
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.sqlite.JDBC
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.community.dialect.SQLiteDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - WEATHER_API_URL=${WEATHER_API_URL}
     volumes:
       - ./weather.sqlite:/app/weather.sqlite
     restart: unless-stopped
