@@ -2,49 +2,43 @@ package com.minelsaygisever.weatherqueryservice.service.impl;
 
 import com.minelsaygisever.weatherqueryservice.exception.ExternalServiceException;
 import com.minelsaygisever.weatherqueryservice.model.dto.WeatherResponse;
-import com.minelsaygisever.weatherqueryservice.model.dto.weatherapi.WeatherApiResponse;
 import com.minelsaygisever.weatherqueryservice.service.WeatherService;
+import com.minelsaygisever.weatherqueryservice.service.provider.WeatherDataProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WeatherServiceImpl implements WeatherService {
 
-    private final RestTemplate restTemplate;
-
-    @Value("${weather.api.url}")
-    private String apiUrl;
-
-    @Value("${weather.api.key}")
-    private String apiKey;
+    private final List<WeatherDataProvider> weatherProviders;
 
     @Override
     public WeatherResponse getWeather(String location) {
-        log.info("Requesting weather data from WeatherAPI for location: {}", location);
+        log.info("Getting weather for {} from {} providers", location, weatherProviders.size());
 
-        String url = String.format("%s?key=%s&q=%s&days=1&aqi=no&alerts=no", apiUrl, apiKey, location);
+        double totalTemp = 0.0;
+        int successfulProviders = 0;
 
-        try {
-            ResponseEntity<WeatherApiResponse> response = restTemplate.getForEntity(url, WeatherApiResponse.class);
-
-            if (response.getBody() != null && response.getBody().current() != null) {
-                Double tempC = response.getBody().current().tempC();
-
-                log.info("WeatherAPI returned temperature: {}C for {}", tempC, location);
-
-                return new WeatherResponse(location, tempC);
+        for (WeatherDataProvider provider : weatherProviders) {
+            Double temp = provider.getCurrentTemperature(location);
+            if (temp != null) {
+                totalTemp += temp;
+                successfulProviders++;
             }
-        } catch (Exception e) {
-            log.error("Error fetching data from WeatherAPI: {}", e.getMessage());
-            throw new ExternalServiceException("Failed to fetch weather data: " + e.getMessage());
         }
 
-        throw new ExternalServiceException("Weather data not found or API response invalid.");
+        if (successfulProviders == 0) {
+            throw new ExternalServiceException("All weather providers failed for location: " + location);
+        }
+
+        double averageTemp = totalTemp / successfulProviders;
+        log.info("Average temperature for {}: {}", location, averageTemp);
+
+        return new WeatherResponse(location, averageTemp);
     }
 }

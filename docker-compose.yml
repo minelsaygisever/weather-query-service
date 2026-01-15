@@ -8,12 +8,14 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATASOURCE_URL=jdbc:sqlite:/app/weather.sqlite
+      - SPRING_DATASOURCE_URL=jdbc:sqlite:/data/weather.db
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.sqlite.JDBC
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.community.dialect.SQLiteDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WEATHER_API_URL=${WEATHER_API_URL}
+      - WEATHERSTACK_URL=${WEATHERSTACK_URL}
+      - WEATHERSTACK_KEY=${WEATHERSTACK_KEY}
     volumes:
-      - ./weather.sqlite:/app/weather.sqlite
+      - ./data:/data
     restart: unless-stopped
