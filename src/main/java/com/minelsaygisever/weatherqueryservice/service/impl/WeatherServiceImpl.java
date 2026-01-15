@@ -27,7 +27,11 @@ public class WeatherServiceImpl implements WeatherService {
         List<CompletableFuture<Double>> futures = weatherProviders.stream()
                 .map(provider -> CompletableFuture.supplyAsync(() -> {
                     return provider.getCurrentTemperature(location);
-                }, taskExecutor))
+                }, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("One provider failed for location {}: {}", location, ex.getMessage());
+                    return null;
+                }))
                 .toList();
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();

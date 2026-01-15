@@ -1,6 +1,7 @@
 package com.minelsaygisever.weatherqueryservice.service.provider;
 
 import com.minelsaygisever.weatherqueryservice.model.dto.weatherstack.WeatherStackResponse;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,22 +23,18 @@ public class WeatherStackProvider implements WeatherDataProvider {
     private String apiKey;
 
     @Override
+    @Retry(name = "weatherRetry")
     public Double getCurrentTemperature(String location) {
         String url = String.format("%s?access_key=%s&query=%s", apiUrl, apiKey, location);
 
-        try {
-            ResponseEntity<WeatherStackResponse> response = restTemplate.getForEntity(url, WeatherStackResponse.class);
+        ResponseEntity<WeatherStackResponse> response = restTemplate.getForEntity(url, WeatherStackResponse.class);
+        if (response.getBody() != null && response.getBody().current() != null) {
+            Double temp = Double.valueOf(response.getBody().current().temperature());
 
-            if (response.getBody() != null && response.getBody().current() != null) {
-                Double temp = Double.valueOf(response.getBody().current().temperature());
-
-                log.info("WeatherStack provider retrieved: {}C for {}", temp, location);
-                return temp;
-            }
-        } catch (Exception e) {
-            log.error("WeatherStack failed: {}", e.getMessage());
-            return null;
+            log.info("WeatherStack provider retrieved: {}C for {}", temp, location);
+            return temp;
         }
+
         return null;
     }
 }
