@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.concurrent.CompletableFuture;
+
 @RequestMapping("/api/v1/weather")
 @Validated
 @Tag(name = "Weather API", description = "Operations related to weather queries")
@@ -29,7 +31,7 @@ public interface WeatherApi {
             }
     )
     @GetMapping
-    ResponseEntity<WeatherResponse> getWeather(
+    CompletableFuture<ResponseEntity<WeatherResponse>> getWeather(
             @Parameter(description = "City name (e.g. Istanbul)", required = true, example = "Istanbul")
             @RequestParam("q")
             @NotBlank(message = "Location parameter cannot be empty")

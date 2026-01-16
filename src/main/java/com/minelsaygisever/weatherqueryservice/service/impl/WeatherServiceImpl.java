@@ -26,8 +26,8 @@ public class WeatherServiceImpl implements WeatherService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    public WeatherResponse getWeather(String location) {
-        log.info("Getting weather for {} asynchronously", location);
+    public WeatherResponse getWeather(String location, int requestCount) {
+        log.info("Getting weather for {} asynchronously. Request Count: {}", location, requestCount);
 
         Map<Integer, Double> results = new ConcurrentHashMap<>();
 
@@ -55,17 +55,16 @@ public class WeatherServiceImpl implements WeatherService {
             throw new ExternalServiceException("All weather providers failed for location: " + location);
         }
 
-        publishQueryEvent(location, results);
+        publishQueryEvent(location, results, requestCount);
 
         return new WeatherResponse(location, averageTemp);
     }
 
-    private void publishQueryEvent(String location, Map<Integer, Double> results) {
+    private void publishQueryEvent(String location, Map<Integer, Double> results, int requestCount) {
         Double temp1 = results.get(1);
         Double temp2 = results.get(2);
 
-        // TODO: Request count = 1 for now
-        WeatherQuerySavedEvent event = new WeatherQuerySavedEvent(location, temp1, temp2, 1);
+        WeatherQuerySavedEvent event = new WeatherQuerySavedEvent(location, temp1, temp2, requestCount);
 
         eventPublisher.publishEvent(event);
     }
