@@ -48,7 +48,7 @@ public class WeatherQueryIntegrationTest {
         when(weatherStackProvider.getCurrentTemperature("London")).thenReturn(17.0);
 
         // Act
-        weatherService.getWeather("London");
+        weatherService.getWeather("London", 5);
 
         // Wait for Async
         try { Thread.sleep(1000); } catch (InterruptedException e) {}
@@ -62,6 +62,6 @@ public class WeatherQueryIntegrationTest {
         assertThat(log.getLocation()).isEqualTo("London");
         assertThat(log.getService1Temperature()).isEqualTo(15.0); // WeatherAPI (Priority 1)
         assertThat(log.getService2Temperature()).isEqualTo(17.0); // WeatherStack (Priority 2)
-        assertThat(log.getRequestCount()).isEqualTo(1);
+        assertThat(log.getRequestCount()).isEqualTo(5);
     }
 }

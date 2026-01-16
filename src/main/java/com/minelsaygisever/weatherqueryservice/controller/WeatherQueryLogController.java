@@ -1,5 +1,6 @@
 package com.minelsaygisever.weatherqueryservice.controller;
 
+import com.minelsaygisever.weatherqueryservice.controller.api.WeatherQueryLogApi;
 import com.minelsaygisever.weatherqueryservice.model.dto.WeatherQueryLogResponse;
 import com.minelsaygisever.weatherqueryservice.service.WeatherQueryLogService;
 import lombok.RequiredArgsConstructor;

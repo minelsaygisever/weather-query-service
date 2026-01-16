@@ -57,7 +57,7 @@ public class WeatherServiceImplTest {
         when(provider2.getCurrentTemperature("Istanbul")).thenReturn(20.0);
 
         // Act
-        WeatherResponse response = weatherService.getWeather("Istanbul");
+        WeatherResponse response = weatherService.getWeather("Istanbul", 5);
 
         // Assert Response
         assertEquals(15.0, response.temperature());
@@ -70,6 +70,8 @@ public class WeatherServiceImplTest {
         assertEquals("Istanbul", capturedEvent.location());
         assertEquals(10.0, capturedEvent.service1Temp());
         assertEquals(20.0, capturedEvent.service2Temp());
+
+        assertEquals(5, capturedEvent.requestCount());
     }
 
     @Test
@@ -79,7 +81,7 @@ public class WeatherServiceImplTest {
         when(provider2.getCurrentTemperature("Istanbul")).thenThrow(new RuntimeException("Connection Failed"));
 
         // Act
-        WeatherResponse response = weatherService.getWeather("Istanbul");
+        WeatherResponse response = weatherService.getWeather("Istanbul", 1);
 
         // Assert Response
         assertEquals(10.0, response.temperature());
@@ -90,6 +92,8 @@ public class WeatherServiceImplTest {
 
         assertEquals(10.0, capturedEvent.service1Temp()); // Provider 1
         assertNull(capturedEvent.service2Temp()); // Provider 2
+
+        assertEquals(1, capturedEvent.requestCount());
     }
 
     @Test
@@ -100,7 +104,7 @@ public class WeatherServiceImplTest {
 
         // Act & Assert Exception
         assertThrows(ExternalServiceException.class, () -> {
-            weatherService.getWeather("Istanbul");
+            weatherService.getWeather("Istanbul", 10);
         });
 
         verifyNoInteractions(eventPublisher);

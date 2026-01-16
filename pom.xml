@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.minelsaygisever</groupId>
     <artifactId>weather-query-service</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
     <name>weather-query-service</name>
     <description>Weather service that aggregates concurrent requests by location to optimize API usage.</description>
     <url/>

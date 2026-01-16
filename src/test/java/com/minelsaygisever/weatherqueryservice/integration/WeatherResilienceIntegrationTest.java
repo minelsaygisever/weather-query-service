@@ -43,7 +43,7 @@ public class WeatherResilienceIntegrationTest {
         // Sliding window size = 5
         for (int i = 0; i < 5; i++) {
             try {
-                weatherService.getWeather("Istanbul");
+                weatherService.getWeather("Istanbul", 1);
             } catch (Exception e) {
 
             }
