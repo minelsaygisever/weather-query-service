@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @RequiredArgsConstructor
@@ -23,9 +24,20 @@ public class WeatherApiProvider implements WeatherDataProvider {
     private String apiKey;
 
     @Override
+    public String getProviderName() {
+        return "WeatherAPI";
+    }
+
+    @Override
     @Retry(name = "weatherRetry")
     public Double getCurrentTemperature(String location) {
-        String url = String.format("%s?key=%s&q=%s&days=1&aqi=no&alerts=no", apiUrl, apiKey, location);
+        String url = UriComponentsBuilder.fromHttpUrl(apiUrl)
+                .queryParam("key", apiKey)
+                .queryParam("q", location)
+                .queryParam("days", 1)
+                .queryParam("aqi", "no")
+                .queryParam("alerts", "no")
+                .toUriString();
 
         ResponseEntity<WeatherApiResponse> response = restTemplate.getForEntity(url, WeatherApiResponse.class);
         if (response.getBody() != null && response.getBody().current() != null) {

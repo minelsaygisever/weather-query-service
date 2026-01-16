@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @RequiredArgsConstructor
@@ -23,9 +24,17 @@ public class WeatherStackProvider implements WeatherDataProvider {
     private String apiKey;
 
     @Override
+    public String getProviderName() {
+        return "WeatherStack";
+    }
+
+    @Override
     @Retry(name = "weatherRetry")
     public Double getCurrentTemperature(String location) {
-        String url = String.format("%s?access_key=%s&query=%s", apiUrl, apiKey, location);
+        String url = UriComponentsBuilder.fromHttpUrl(apiUrl)
+                .queryParam("access_key", apiKey)
+                .queryParam("query", location)
+                .toUriString();
 
         ResponseEntity<WeatherStackResponse> response = restTemplate.getForEntity(url, WeatherStackResponse.class);
         if (response.getBody() != null && response.getBody().current() != null) {
