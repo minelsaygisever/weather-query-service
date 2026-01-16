@@ -1,4 +1,4 @@
-package com.minelsaygisever.weatherqueryservice.controller;
+package com.minelsaygisever.weatherqueryservice.controller.api;
 
 import com.minelsaygisever.weatherqueryservice.model.dto.WeatherResponse;
 import io.swagger.v3.oas.annotations.Operation;

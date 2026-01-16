@@ -1,7 +1,7 @@
 package com.minelsaygisever.weatherqueryservice.controller;
 
+import com.minelsaygisever.weatherqueryservice.controller.api.WeatherApi;
 import com.minelsaygisever.weatherqueryservice.model.dto.WeatherResponse;
-import com.minelsaygisever.weatherqueryservice.service.WeatherService;
 import com.minelsaygisever.weatherqueryservice.service.aggregator.WeatherAggregatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
