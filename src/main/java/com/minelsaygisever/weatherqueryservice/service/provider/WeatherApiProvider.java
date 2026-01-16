@@ -1,6 +1,7 @@
 package com.minelsaygisever.weatherqueryservice.service.provider;
 
 import com.minelsaygisever.weatherqueryservice.model.dto.weatherapi.WeatherApiResponse;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @RequiredArgsConstructor
@@ -23,9 +25,26 @@ public class WeatherApiProvider implements WeatherDataProvider {
     private String apiKey;
 
     @Override
+    public String getProviderName() {
+        return "WeatherAPI";
+    }
+
+    @Override
+    public int getPriority() {
+        return 1;
+    }
+
+    @Override
     @Retry(name = "weatherRetry")
+    @CircuitBreaker(name = "weatherCircuitBreaker")
     public Double getCurrentTemperature(String location) {
-        String url = String.format("%s?key=%s&q=%s&days=1&aqi=no&alerts=no", apiUrl, apiKey, location);
+        String url = UriComponentsBuilder.fromHttpUrl(apiUrl)
+                .queryParam("key", apiKey)
+                .queryParam("q", location)
+                .queryParam("days", 1)
+                .queryParam("aqi", "no")
+                .queryParam("alerts", "no")
+                .toUriString();
 
         ResponseEntity<WeatherApiResponse> response = restTemplate.getForEntity(url, WeatherApiResponse.class);
         if (response.getBody() != null && response.getBody().current() != null) {
