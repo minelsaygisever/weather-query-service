@@ -5,6 +5,7 @@ import com.minelsaygisever.weatherqueryservice.repository.WeatherQueryRepository
 import com.minelsaygisever.weatherqueryservice.service.WeatherService;
 import com.minelsaygisever.weatherqueryservice.service.provider.WeatherApiProvider;
 import com.minelsaygisever.weatherqueryservice.service.provider.WeatherStackProvider;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,6 +30,11 @@ public class WeatherQueryIntegrationTest {
 
     @MockitoBean
     private WeatherStackProvider weatherStackProvider;
+
+    @BeforeEach
+    void setUp() {
+        weatherQueryRepository.deleteAll();
+    }
 
     @Test
     void shouldSaveWeatherQueryToDatabase_WhenServiceReturnsResult() {

@@ -1,6 +1,7 @@
 package com.minelsaygisever.weatherqueryservice.service.provider;
 
 import com.minelsaygisever.weatherqueryservice.model.dto.weatherapi.WeatherApiResponse;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class WeatherApiProvider implements WeatherDataProvider {
 
     @Override
     @Retry(name = "weatherRetry")
+    @CircuitBreaker(name = "weatherCircuitBreaker")
     public Double getCurrentTemperature(String location) {
         String url = UriComponentsBuilder.fromHttpUrl(apiUrl)
                 .queryParam("key", apiKey)
