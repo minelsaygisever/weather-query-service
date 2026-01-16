@@ -29,6 +29,11 @@ public class WeatherStackProvider implements WeatherDataProvider {
     }
 
     @Override
+    public int getPriority() {
+        return 2;
+    }
+
+    @Override
     @Retry(name = "weatherRetry")
     public Double getCurrentTemperature(String location) {
         String url = UriComponentsBuilder.fromHttpUrl(apiUrl)

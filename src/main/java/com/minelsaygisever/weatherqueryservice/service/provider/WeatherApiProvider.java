@@ -29,6 +29,11 @@ public class WeatherApiProvider implements WeatherDataProvider {
     }
 
     @Override
+    public int getPriority() {
+        return 1;
+    }
+
+    @Override
     @Retry(name = "weatherRetry")
     public Double getCurrentTemperature(String location) {
         String url = UriComponentsBuilder.fromHttpUrl(apiUrl)

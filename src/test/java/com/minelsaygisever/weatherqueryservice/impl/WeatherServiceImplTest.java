@@ -1,5 +1,6 @@
 package com.minelsaygisever.weatherqueryservice.impl;
 
+import com.minelsaygisever.weatherqueryservice.event.WeatherQuerySavedEvent;
 import com.minelsaygisever.weatherqueryservice.exception.ExternalServiceException;
 import com.minelsaygisever.weatherqueryservice.model.dto.WeatherResponse;
 import com.minelsaygisever.weatherqueryservice.service.impl.WeatherServiceImpl;
@@ -7,8 +8,11 @@ import com.minelsaygisever.weatherqueryservice.service.provider.WeatherDataProvi
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Arrays;
 import java.util.concurrent.Executor;
@@ -26,44 +30,79 @@ public class WeatherServiceImplTest {
     @Mock
     private WeatherDataProvider provider2;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Captor
+    private ArgumentCaptor<WeatherQuerySavedEvent> eventCaptor;
+
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
 
         weatherService = new WeatherServiceImpl(
                 Arrays.asList(provider1, provider2),
-                directExecutor
+                directExecutor,
+                eventPublisher
         );
+
+        lenient().when(provider1.getPriority()).thenReturn(1);
+        lenient().when(provider2.getPriority()).thenReturn(2);
     }
 
     @Test
-    void shouldCalculateAverage_WhenBothProvidersSucceed() {
+    void shouldCalculateAverage_AndPublishEvent_WhenBothProvidersSucceed() {
+        // Arrange
         when(provider1.getCurrentTemperature("Istanbul")).thenReturn(10.0);
         when(provider2.getCurrentTemperature("Istanbul")).thenReturn(20.0);
 
+        // Act
         WeatherResponse response = weatherService.getWeather("Istanbul");
 
+        // Assert Response
         assertEquals(15.0, response.temperature());
         assertEquals("Istanbul", response.location());
+
+        // Assert Event Publishing
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        WeatherQuerySavedEvent capturedEvent = eventCaptor.getValue();
+
+        assertEquals("Istanbul", capturedEvent.location());
+        assertEquals(10.0, capturedEvent.service1Temp());
+        assertEquals(20.0, capturedEvent.service2Temp());
     }
 
     @Test
-    void shouldReturnSingleResult_WhenOneProviderFails() {
+    void shouldReturnSingleResult_AndPublishNullForFailed_WhenOneProviderFails() {
+        // Arrange
         when(provider1.getCurrentTemperature("Istanbul")).thenReturn(10.0);
         when(provider2.getCurrentTemperature("Istanbul")).thenThrow(new RuntimeException("Connection Failed"));
 
+        // Act
         WeatherResponse response = weatherService.getWeather("Istanbul");
 
+        // Assert Response
         assertEquals(10.0, response.temperature());
+
+        // Assert Event
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        WeatherQuerySavedEvent capturedEvent = eventCaptor.getValue();
+
+        assertEquals(10.0, capturedEvent.service1Temp()); // Provider 1
+        assertNull(capturedEvent.service2Temp()); // Provider 2
     }
 
     @Test
-    void shouldThrowException_WhenAllProvidersFail() {
+    void shouldThrowException_AndNotPublishEvent_WhenAllProvidersFail() {
+        // Arrange
         when(provider1.getCurrentTemperature("Istanbul")).thenThrow(new RuntimeException("Fail 1"));
         when(provider2.getCurrentTemperature("Istanbul")).thenThrow(new RuntimeException("Fail 2"));
 
+        // Act & Assert Exception
         assertThrows(ExternalServiceException.class, () -> {
             weatherService.getWeather("Istanbul");
         });
+
+        verifyNoInteractions(eventPublisher);
     }
 }
