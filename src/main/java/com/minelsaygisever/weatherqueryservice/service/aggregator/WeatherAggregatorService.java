@@ -4,9 +4,11 @@ import com.minelsaygisever.weatherqueryservice.model.dto.WeatherResponse;
 import com.minelsaygisever.weatherqueryservice.service.WeatherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -25,73 +27,95 @@ public class WeatherAggregatorService {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
+    private final ExecutorService ioExecutor = Executors.newFixedThreadPool(50);
+
+    @Value("${weather.aggregator.batch-size:10}")
     private static final int BATCH_SIZE = 10;
-    private static final long BATCH_TIMEOUT_MS = 5000; // 5 seconds
+    @Value("${weather.aggregator.batch-timeout-ms:5000}")
+    private static final long BATCH_TIMEOUT_MS = 5000;
 
     public CompletableFuture<WeatherResponse> getWeather(String location) {
         CompletableFuture<WeatherResponse> future = new CompletableFuture<>();
 
-        activeBatches.compute(location, (key, existingBatch) -> {
-            if (existingBatch != null && (existingBatch.isFull() || existingBatch.isProcessed.get())) {
-                processBatch(existingBatch);
-                existingBatch = null;
+        // Atomic operation
+        activeBatches.compute(location, (key, batch) -> {
+            if (batch != null) {
+                if (batch.isFull() && !batch.isProcessed.get()) {
+                    processBatch(batch);
+                    batch = null;
+                }
+                else if ( batch.isProcessed.get()) {
+                    batch = null;
+                }
             }
 
-            if (existingBatch == null) {
-                existingBatch = new Batch(location);
-
-                Batch finalBatchRef = existingBatch;
-                existingBatch.timeoutTask = scheduler.schedule(
-                        () -> processBatch(finalBatchRef),
-                        BATCH_TIMEOUT_MS,
-                        TimeUnit.MILLISECONDS
-                );
-                log.debug("[{}] A new batch has been created.", location);
+            if (batch == null) {
+                batch = createBatchWithTimeout(location);
             }
 
-            existingBatch.addClient(future);
+            boolean added = batch.tryAddClient(future);
+            if (!added) {
+                Batch newBatch = createBatchWithTimeout(location);
+                newBatch.addClient(future);
+                return newBatch;
+            }
 
-            if (existingBatch.isFull()) {
+            // If batch limit is reached, process immediately
+            if (batch.isFull()) {
                 log.info("[{}] Batch limit (10) has been reached. It is being shipped immediately.", location);
-                processBatch(existingBatch);
+                processBatch(batch);
+                return null; // Remove from map
             }
 
-            return existingBatch;
+            return batch; // Update map with current batch
         });
 
         return future;
     }
 
     private void processBatch(Batch batch) {
-        if (!batch.isProcessed.compareAndSet(false, true)) {
-            return;
+        List<CompletableFuture<WeatherResponse>> clientsSnapshot;
+
+        synchronized (batch.waitingClients) {
+            // Ensure batch is processed exactly once
+            if (!batch.isProcessed.compareAndSet(false, true)) {
+                return;
+            }
+            clientsSnapshot = new ArrayList<>(batch.waitingClients);
         }
 
-        activeBatches.remove(batch.location, batch);
         batch.cancelTimer();
+        activeBatches.remove(batch.location, batch);
 
-        log.info("Batch is being processed: Location={}, ClientCount={}", batch.location, batch.waitingClients.size());
-        CompletableFuture.runAsync(() -> {
+        ioExecutor.execute(() -> {
             try {
-                int currentRequestCount = batch.waitingClients.size();
-
-                WeatherResponse response = weatherService.getWeather(batch.location, currentRequestCount);
-
-                for (CompletableFuture<WeatherResponse> client : batch.waitingClients) {
-                    client.complete(response);
-                }
+                WeatherResponse response = weatherService.getWeather(batch.location, clientsSnapshot.size());
+                // Distribute result to all waiting clients
+                clientsSnapshot.forEach(cf -> cf.complete(response));
             } catch (Exception e) {
-                log.error("An error occurred while processing the batch: {}", e.getMessage());
-                for (CompletableFuture<WeatherResponse> client : batch.waitingClients) {
-                    client.completeExceptionally(e);
-                }
+                clientsSnapshot.forEach(cf -> cf.completeExceptionally(e));
             }
         });
     }
 
+    private Batch createBatchWithTimeout(String location) {
+        Batch batch = new Batch(location);
+        Batch ref = batch;
+
+        // Schedule automatic processing after 5 seconds
+        batch.timeoutTask = scheduler.schedule(
+                () -> processBatch(ref),
+                BATCH_TIMEOUT_MS,
+                TimeUnit.MILLISECONDS
+        );
+
+        log.debug("[{}] A new batch has been created.", location);
+        return batch;
+    }
+
     private class Batch {
         final String location;
-        final List<CompletableFuture<WeatherResponse>> waitingClients = new ArrayList<>();
+        final List<CompletableFuture<WeatherResponse>> waitingClients = Collections.synchronizedList(new ArrayList<>());
         ScheduledFuture<?> timeoutTask;
         final AtomicBoolean isProcessed = new AtomicBoolean(false);
 
@@ -103,8 +127,20 @@ public class WeatherAggregatorService {
             waitingClients.add(future);
         }
 
+        boolean tryAddClient(CompletableFuture<WeatherResponse> future) {
+            synchronized (waitingClients) {
+                if (isProcessed.get() || waitingClients.size() >= BATCH_SIZE) {
+                    return false;
+                }
+                waitingClients.add(future);
+                return true;
+            }
+        }
+
         boolean isFull() {
-            return waitingClients.size() >= BATCH_SIZE;
+            synchronized (waitingClients) {
+                return waitingClients.size() >= BATCH_SIZE;
+            }
         }
 
         void cancelTimer() {
@@ -117,5 +153,6 @@ public class WeatherAggregatorService {
     @jakarta.annotation.PreDestroy
     public void stopScheduler() {
         scheduler.shutdown();
+        ioExecutor.shutdown();
     }
 }
